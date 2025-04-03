@@ -12,6 +12,7 @@ import {
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { X, Minus } from "lucide-react";
 import TaskSelector from "./TaskSelector";
+import WorkspaceSelector from "./WorkspaceSelector";
 
 const CLIENT_ID = import.meta.env.VITE_CLICKUP_CLIENT_ID;
 const REDIRECT_URI = import.meta.env.VITE_CLICKUP_REDIRECT_URI;
@@ -50,6 +51,7 @@ function ClickUpLoginScreen({ onClose, onMinimize }: { onClose: () => void; onMi
 
 export default function ClickUpTaskPanel() {
   const [accessToken, setAccessToken] = useState<string | null>(null);
+  const [workspaceId, setWorkspaceId] = useState<string | null>(localStorage.getItem("clickup_workspace_id"));
   const [dueDate, setDueDate] = useState<Date | undefined>(new Date());
   const [startDate, setStartDate] = useState<Date | undefined>(new Date());
   const [comment, setComment] = useState("");
@@ -119,6 +121,11 @@ export default function ClickUpTaskPanel() {
     setIsMinimized(true);
   };
 
+  const handleWorkspaceSelect = (id: string) => {
+    setWorkspaceId(id);
+    localStorage.setItem("clickup_workspace_id", id);
+  };
+
   const statusOptions = [
     { label: "OPORTUNIDADE", color: "bg-yellow-400 text-yellow-800" },
     { label: "EM QUALIFICAÇÃO", color: "bg-yellow-500 text-white" },
@@ -153,8 +160,10 @@ export default function ClickUpTaskPanel() {
           >
             {!accessToken ? (
               <ClickUpLoginScreen onClose={() => setIsVisible(false)} onMinimize={handleMinimize} />
-            ) : (
-              <>
+            ) : !workspaceId ? (
+              <WorkspaceSelector accessToken={accessToken} onSelect={handleWorkspaceSelect} />
+                ) : (
+                  <>
                 <div className="flex justify-between items-start mb-4">
                   <div>
                     <h1 className="text-xl font-semibold">
