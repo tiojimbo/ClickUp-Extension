@@ -13,8 +13,8 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { X, Minus } from "lucide-react";
 import TaskSelector from "./TaskSelector";
 
-const CLIENT_ID = "O6WZ1RA75MDP45BPLN4JMZETEENPC0VQ";
-const REDIRECT_URI = "http://localhost:5173/callback"; // substitua pelo seu redirect real
+const CLIENT_ID = import.meta.env.VITE_CLICKUP_CLIENT_ID;
+const REDIRECT_URI = import.meta.env.VITE_CLICKUP_REDIRECT_URI;
 
 function ClickUpLoginScreen({ onClose, onMinimize }: { onClose: () => void; onMinimize: () => void }) {
   const handleLogin = () => {
@@ -73,11 +73,11 @@ export default function ClickUpTaskPanel() {
     const urlParams = new URLSearchParams(window.location.search);
     const code = urlParams.get("code");
     const storedToken = localStorage.getItem("clickup_access_token");
-  
+
     if (storedToken) {
       setAccessToken(storedToken);
     } else if (code) {
-      fetch("http://localhost:3001/auth/token", {
+      fetch(import.meta.env.VITE_OAUTH_BACKEND_URL + "/auth/token", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ code }),
@@ -330,6 +330,7 @@ export default function ClickUpTaskPanel() {
                       </div>
                     </div>
 
+                    {/* Ver detalhes no ClickUp */}
                     <div className="pt-4">
                       <Button variant="outline" className="w-full text-sm">
                         Ver detalhes no ClickUp
