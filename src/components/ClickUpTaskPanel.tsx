@@ -39,7 +39,7 @@ function ClickUpLoginScreen({ onClose, onMinimize }: { onClose: () => void; onMi
       <div className="flex flex-col justify-center items-center h-[400px] text-center space-y-6">
         <h1 className="text-2xl font-bold">Bem-vindo de volta!</h1>
         <Button
-          className="bg-[#7b68ee] text-white hover:bg-[#6858d6] px-6 py-2 rounded-md"
+          className="bg-[#5C47CD] text-white hover:bg-[#5C47CD] px-6 py-2 rounded-md"
           onClick={handleLogin}
         >
           Conectar com ClickUp
@@ -121,9 +121,9 @@ export default function ClickUpTaskPanel() {
     setIsMinimized(true);
   };
 
-  const handleWorkspaceSelect = (id: string) => {
-    setWorkspaceId(id);
-    localStorage.setItem("clickup_workspace_id", id);
+  const handleWorkspaceSelect = (workspace: { id: string }) => {
+    setWorkspaceId(workspace.id);
+    localStorage.setItem("clickup_workspace_id", workspace.id);
   };
 
   const statusOptions = [
@@ -161,7 +161,12 @@ export default function ClickUpTaskPanel() {
             {!accessToken ? (
               <ClickUpLoginScreen onClose={() => setIsVisible(false)} onMinimize={handleMinimize} />
             ) : !workspaceId ? (
-              <WorkspaceSelector accessToken={accessToken} onSelect={handleWorkspaceSelect} />
+              <WorkspaceSelector 
+              accessToken={accessToken} 
+              onWorkspaceSelect={handleWorkspaceSelect}
+              onClose={() => setIsVisible(false)}
+              onMinimize={handleMinimize}
+               />
                 ) : (
                   <>
                 <div className="flex justify-between items-start mb-4">
