@@ -191,7 +191,10 @@ export default function ClickUpTaskPanel() {
                 </div>
 
                 {!selectedTaskId ? (
-                  <TaskSelector onTaskSelect={(taskId: string) => setSelectedTaskId(taskId)} />
+                  <TaskSelector
+                  accessToken={accessToken}
+                  workspaceId={workspaceId}
+                  onTaskSelect={(taskId: string) => setSelectedTaskId(taskId)} />
                 ) : (
                   <>
                     {/* Status */}

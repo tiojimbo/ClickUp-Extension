@@ -1,14 +1,24 @@
 import React, { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "./ui/skeleton";
-import { getTeams, getSpaces, getFolders, getLists, getTasks } from "@/services/clickupAPI";
+import {
+  getSpaces,
+  getFolders,
+  getLists,
+  getTasks,
+} from "@/services/clickupAPI";
 
 interface TaskSelectorProps {
+  accessToken: string;
+  workspaceId: string;
   onTaskSelect: (taskId: string) => void;
 }
 
-const TaskSelector: React.FC<TaskSelectorProps> = ({ onTaskSelect }) => {
-  const [teamId, setTeamId] = useState<string | null>(null);
+const TaskSelector: React.FC<TaskSelectorProps> = ({
+  accessToken,
+  workspaceId,
+  onTaskSelect,
+}) => {
   const [spaces, setSpaces] = useState<any[]>([]);
   const [lists, setLists] = useState<any[]>([]);
   const [tasks, setTasks] = useState<any[]>([]);
@@ -18,44 +28,53 @@ const TaskSelector: React.FC<TaskSelectorProps> = ({ onTaskSelect }) => {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    const fetchInitialData = async () => {
-      const teams = await getTeams();
-      if (teams.length > 0) {
-        const id = teams[0].id;
-        setTeamId(id);
-        const spaceRes = await getSpaces(id);
+    const fetchSpaces = async () => {
+      try {
+        const spaceRes = await getSpaces(workspaceId, accessToken);
         setSpaces(spaceRes);
+      } catch (err) {
+        console.error("Erro ao buscar espaços:", err);
       }
     };
-    fetchInitialData();
-  }, []);
+    if (workspaceId && accessToken) {
+      fetchSpaces();
+    }
+  }, [workspaceId, accessToken]);
 
   useEffect(() => {
     const fetchLists = async () => {
       if (!selectedSpace) return;
       setLoading(true);
-      const folders = await getFolders(selectedSpace);
-      const listsFromFolders = await Promise.all(
-        folders.map((folder: any) => getLists(folder.id))
-      );
-      const flatLists = listsFromFolders.flat();
-      const noFolderLists = await getLists(selectedSpace, true);
-      setLists([...flatLists, ...noFolderLists]);
+      try {
+        const folders = await getFolders(selectedSpace, accessToken);
+        const listsFromFolders = await Promise.all(
+          folders.map((folder: any) => getLists(folder.id, false, accessToken))
+        );
+        const flatLists = listsFromFolders.flat();
+        const noFolderLists = await getLists(selectedSpace, true, accessToken);
+        setLists([...flatLists, ...noFolderLists]);
+      } catch (err) {
+        console.error("Erro ao buscar listas:", err);
+      }
       setLoading(false);
     };
     fetchLists();
-  }, [selectedSpace]);
+  }, [selectedSpace, accessToken]);
 
   useEffect(() => {
     const fetchTasks = async () => {
       if (!selectedList) return;
       setLoading(true);
-      const taskRes = await getTasks(selectedList);
-      setTasks(taskRes);
+      try {
+        const taskRes = await getTasks(selectedList, accessToken);
+        setTasks(taskRes);
+      } catch (err) {
+        console.error("Erro ao buscar tarefas:", err);
+      }
       setLoading(false);
     };
     fetchTasks();
-  }, [selectedList]);
+  }, [selectedList, accessToken]);
 
   return (
     <div className="space-y-4">
