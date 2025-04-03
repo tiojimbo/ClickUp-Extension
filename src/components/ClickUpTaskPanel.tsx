@@ -77,7 +77,8 @@ export default function ClickUpTaskPanel() {
     if (storedToken) {
       setAccessToken(storedToken);
     } else if (code) {
-      fetch(import.meta.env.VITE_OAUTH_BACKEND_URL + "/auth/token", {
+      console.log("URL de troca de token:", `${import.meta.env.VITE_OAUTH_BACKEND_URL}/auth/token`);
+      fetch(`${import.meta.env.VITE_OAUTH_BACKEND_URL}/auth/token`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ code }),
