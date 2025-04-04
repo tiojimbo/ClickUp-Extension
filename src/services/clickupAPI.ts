@@ -1,50 +1,64 @@
-const API_BASE = "https://api.clickup.com/api/v2";
-
-// Buscar espaços (Spaces) de um workspace (Team)
-export async function getSpaces(workspaceId: string, accessToken: string) {
-  const res = await fetch(`${API_BASE}/team/${workspaceId}/space`, {
+export async function getTaskDetails(taskId: string, accessToken: string) {
+  const response = await fetch(`https://api.clickup.com/api/v2/task/${taskId}`, {
     headers: {
       Authorization: `Bearer ${accessToken}`,
     },
   });
-  const data = await res.json();
-  return data.spaces || [];
+  return response.json();
 }
 
-// Buscar pastas (Folders) dentro de um espaço
-export async function getFolders(spaceId: string, accessToken: string) {
-  const res = await fetch(`${API_BASE}/space/${spaceId}/folder`, {
+export async function updateTask(taskId: string, accessToken: string, updates: any) {
+  const response = await fetch(`https://api.clickup.com/api/v2/task/${taskId}`, {
+    method: "PUT",
     headers: {
       Authorization: `Bearer ${accessToken}`,
+      "Content-Type": "application/json",
     },
+    body: JSON.stringify(updates),
   });
-  const data = await res.json();
-  return data.folders || [];
+  return response.json();
 }
 
-// Buscar listas dentro de uma pasta OU espaço (caso sem pasta)
-export async function getLists(id: string, noFolder = false, accessToken: string) {
-  const url = noFolder
-    ? `${API_BASE}/space/${id}/list`
-    : `${API_BASE}/folder/${id}/list`;
-
-  const res = await fetch(url, {
+export async function addComment(taskId: string, accessToken: string, comment: string) {
+  const response = await fetch(`https://api.clickup.com/api/v2/task/${taskId}/comment`, {
+    method: "POST",
     headers: {
       Authorization: `Bearer ${accessToken}`,
+      "Content-Type": "application/json",
     },
+    body: JSON.stringify({
+      comment,
+    }),
   });
-
-  const data = await res.json();
-  return data.lists || [];
+  return response.json();
 }
 
-// Buscar tarefas dentro de uma lista
-export async function getTasks(listId: string, accessToken: string) {
-  const res = await fetch(`${API_BASE}/list/${listId}/task`, {
+export async function getCustomFields(taskId: string, accessToken: string) {
+  const response = await fetch(`https://api.clickup.com/api/v2/task/${taskId}/field`, {
     headers: {
       Authorization: `Bearer ${accessToken}`,
     },
   });
-  const data = await res.json();
-  return data.tasks || [];
+
+  const data = await response.json();
+  return data.fields || [];
+}
+
+export async function getSpacesByTeam(teamId: string, accessToken: string) {
+  try {
+    const response = await fetch(`${import.meta.env.VITE_OAUTH_BACKEND_URL}/api/spaces?team_id=${teamId}`, {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+    });
+
+    const data = await response.json();
+
+    console.log("📡 [clickupAPI] Resposta da API /api/spaces:", JSON.stringify(data, null, 2));
+
+    return data.spaces || [];
+  } catch (error) {
+    console.error("❌ [clickupAPI] Erro ao buscar espaços:", error);
+    return [];
+  }
 }
