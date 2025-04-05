@@ -62,3 +62,33 @@ export async function getSpacesByTeam(teamId: string, accessToken: string) {
     return [];
   }
 }
+
+export async function getFolders(spaceId: string, accessToken: string) {
+  const response = await fetch(`https://api.clickup.com/api/v2/space/${spaceId}/folder`, {
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error("Erro ao buscar pastas");
+  }
+
+  const data = await response.json();
+  return data.folders;
+}
+
+export async function getLists(folderId: string, accessToken: string) {
+  const response = await fetch(`https://api.clickup.com/api/v2/folder/${folderId}/list`, {
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error("Erro ao buscar listas");
+  }
+
+  const data = await response.json();
+  return data.lists;
+}

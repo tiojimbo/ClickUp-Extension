@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import WorkspaceExplorer from "@/components/WorkspaceExplorer";
 import {
   DialogHeader,
   DialogFooter
@@ -12,7 +13,6 @@ import {
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { X, Minus } from "lucide-react";
 import TaskSelector from "./TaskSelector";
-import WorkspaceSelector from "./WorkspaceSelector";
 
 const CLIENT_ID = import.meta.env.VITE_CLICKUP_CLIENT_ID;
 const REDIRECT_URI = import.meta.env.VITE_CLICKUP_REDIRECT_URI;
@@ -63,6 +63,8 @@ export default function ClickUpTaskPanel() {
   const [isCommentDialogOpen, setIsCommentDialogOpen] = useState(false);
   const [description, setDescription] = useState("Texto da descrição da tarefa que pode ser muito longa...");
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
+  const [selectedListId, setSelectedListId] = useState<string | null>(null);
+  
 
   const containerRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
@@ -74,12 +76,32 @@ export default function ClickUpTaskPanel() {
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
     const code = urlParams.get("code");
+    const alreadyUsedCode = sessionStorage.getItem("clickup_code_used");
+
+    if (code && alreadyUsedCode === code) {
+      console.warn("⚠️ Código já foi usado anteriormente. Evitando fetch duplicado.");
+      return;
+    }
+  
     const storedToken = localStorage.getItem("clickup_access_token");
+    const storedWorkspaceId = localStorage.getItem("clickup_workspace_id");
+
+    console.log("🧠 useEffect STARTED");
+    console.log("🔁 AccessToken (localStorage):", storedToken);
+    console.log("📌 WorkspaceId (localStorage):", storedWorkspaceId);
 
     if (storedToken) {
+      console.log("Token já salvo:", storedToken);
       setAccessToken(storedToken);
-    } else if (code) {
-      console.log("URL de troca de token:", `${import.meta.env.VITE_OAUTH_BACKEND_URL}/auth/token`);
+  
+      if (storedWorkspaceId) {
+        setWorkspaceId(storedWorkspaceId);
+      }
+    } 
+  
+    // Se tiver code, mas ainda não tem token
+    if (code) {
+      console.log("🎯 Código recebido da URL:", code);
       fetch(`${import.meta.env.VITE_OAUTH_BACKEND_URL}/auth/token`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -88,16 +110,40 @@ export default function ClickUpTaskPanel() {
         .then(res => res.json())
         .then(data => {
           if (data.access_token) {
+            console.log("✅ AccessToken recebido e salvo:", data.access_token);
+            console.log("Token recebido:", data.access_token);
             localStorage.setItem("clickup_access_token", data.access_token);
+            console.log("Token salvo no localStorage:", data.access_token);
+            sessionStorage.setItem("clickup_code_used", code);
             setAccessToken(data.access_token);
-            window.history.replaceState({}, "", window.location.pathname);
+  
+            // Buscar workspace
+            return fetch(`${import.meta.env.VITE_OAUTH_BACKEND_URL}/api/team`, {
+              headers: {
+                Authorization: `Bearer ${data.access_token}`,
+              },
+            });
+          } else {
+            console.error("Erro ao obter token:", data);
           }
         })
-        .catch(err => {
-          console.error("Erro ao autenticar com ClickUp:", err);
-        });
+        .then(res => res?.json())
+        .then(teamData => {
+          if (teamData?.teams?.length > 0) {
+            const id = teamData.teams[0].id;
+            console.log("✅ WorkspaceId salvo:", id);
+            localStorage.setItem("clickup_workspace_id", id);
+            setWorkspaceId(id);
+          }
+
+          window.history.replaceState({}, "", window.location.pathname);
+        
+        })
+        .catch(err => console.error("Erro no login:", err));
     }
   }, []);
+  
+
 
   useEffect(() => {
     if (!isMinimized) {
@@ -119,11 +165,6 @@ export default function ClickUpTaskPanel() {
     const clampedY = Math.max(0, Math.min(window.innerHeight - 300, currentY));
     setLastPosition({ x: clampedX, y: clampedY });
     setIsMinimized(true);
-  };
-
-  const handleWorkspaceSelect = (workspace: { id: string }) => {
-    setWorkspaceId(workspace.id);
-    localStorage.setItem("clickup_workspace_id", workspace.id);
   };
 
   const statusOptions = [
@@ -161,14 +202,9 @@ export default function ClickUpTaskPanel() {
             {!accessToken ? (
               <ClickUpLoginScreen onClose={() => setIsVisible(false)} onMinimize={handleMinimize} />
             ) : !workspaceId ? (
-              <WorkspaceSelector 
-              accessToken={accessToken} 
-              onWorkspaceSelect={handleWorkspaceSelect}
-              onClose={() => setIsVisible(false)}
-              onMinimize={handleMinimize}
-               />
-                ) : (
-                  <>
+              <div className="text-center py-10 text-zinc-500">Carregando workspace...</div>
+            ) : (
+              <>
                 <div className="flex justify-between items-start mb-4">
                   <div>
                     <h1 className="text-xl font-semibold">
@@ -190,14 +226,29 @@ export default function ClickUpTaskPanel() {
                   </div>
                 </div>
 
-                {!selectedTaskId ? (
-                  <TaskSelector
-                  accessToken={accessToken}
-                  workspaceId={workspaceId}
-                  onTaskSelect={(taskId: string) => setSelectedTaskId(taskId)} />
-                ) : (
+                  {!selectedTaskId ? (
+                    <>
+                      <WorkspaceExplorer
+                        accessToken={accessToken!}
+                        workspaceId={workspaceId!}
+                        onListSelect={(listId) => {
+                          console.log("📂 Lista selecionada:", listId);
+                          setSelectedListId(listId);
+                        }}
+                      />
+                  
+                      {/* A TaskSelector pode permanecer visível se quiser, ou ser usada depois de escolher a lista */}
+                      {selectedListId && (
+                        <TaskSelector
+                          accessToken={accessToken}
+                          teamId={workspaceId}
+                          onTaskSelect={(taskId: string) => setSelectedTaskId(taskId)}
+                        />
+                      )}
+                    </>
+                  ) : (
+                  
                   <>
-                    {/* Status */}
                     <div className="flex justify-between items-center z-[9999] p-2 rounded-md">
                       <label className="text-sm font-medium">Status</label>
                       <Popover open={isPopoverOpen} onOpenChange={setIsPopoverOpen}>
@@ -224,7 +275,6 @@ export default function ClickUpTaskPanel() {
                       </Popover>
                     </div>
 
-                    {/* Datas */}
                     <div className="flex gap-4">
                       <div className="flex flex-col gap-1 w-1/2">
                         <label className="text-sm font-medium">Data Inicial</label>
@@ -236,7 +286,6 @@ export default function ClickUpTaskPanel() {
                       </div>
                     </div>
 
-                    {/* Descrição */}
                     <div className="flex flex-col gap-1 relative">
                       <label className="text-sm font-medium">Descrição</label>
                       <div className="relative">
@@ -276,7 +325,6 @@ export default function ClickUpTaskPanel() {
                       )}
                     </div>
 
-                    {/* Campos personalizados */}
                     <div className="pt-2">
                       <h3 className="text-sm font-medium mb-2">Campos Personalizados</h3>
                       <div className="flex gap-4">
@@ -295,7 +343,6 @@ export default function ClickUpTaskPanel() {
                       </div>
                     </div>
 
-                    {/* Comentários */}
                     {isCommentDialogOpen && (
                       <>
                         <div className="fixed inset-0 bg-black/40 z-40" />
@@ -330,7 +377,6 @@ export default function ClickUpTaskPanel() {
                       </Button>
                     </div>
 
-                    {/* Responsáveis e tags */}
                     <div className="pt-4 space-y-2">
                       <div>
                         <label className="text-sm font-medium">Responsáveis</label>
@@ -348,7 +394,6 @@ export default function ClickUpTaskPanel() {
                       </div>
                     </div>
 
-                    {/* Ver detalhes no ClickUp */}
                     <div className="pt-4">
                       <Button variant="outline" className="w-full text-sm">
                         Ver detalhes no ClickUp
