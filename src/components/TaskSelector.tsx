@@ -1,150 +1,64 @@
 import React, { useEffect, useState } from "react";
-import { Button } from "@/components/ui/button";
-import { Skeleton } from "./ui/skeleton";
-import {
-  getSpaces,
-  getFolders,
-  getLists,
-  getTasks,
-} from "@/services/clickupAPI";
+import { getSpacesByTeam } from "@/services/clickupAPI";
 
 interface TaskSelectorProps {
   accessToken: string;
-  workspaceId: string;
+  teamId: string;
   onTaskSelect: (taskId: string) => void;
 }
 
-const TaskSelector: React.FC<TaskSelectorProps> = ({
-  accessToken,
-  workspaceId,
-  onTaskSelect,
-}) => {
+const TaskSelector: React.FC<TaskSelectorProps> = ({ accessToken, teamId, onTaskSelect }) => {
   const [spaces, setSpaces] = useState<any[]>([]);
-  const [lists, setLists] = useState<any[]>([]);
-  const [tasks, setTasks] = useState<any[]>([]);
-
-  const [selectedSpace, setSelectedSpace] = useState<string | null>(null);
-  const [selectedList, setSelectedList] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchSpaces = async () => {
-      try {
-        const spaceRes = await getSpaces(workspaceId, accessToken);
-        setSpaces(spaceRes);
-      } catch (err) {
-        console.error("Erro ao buscar espaços:", err);
+      if (!teamId || !accessToken) {
+        console.warn("⚠️ teamId ou accessToken ausentes", { teamId, accessToken });
+        return;
       }
-    };
-    if (workspaceId && accessToken) {
-      fetchSpaces();
-    }
-  }, [workspaceId, accessToken]);
 
-  useEffect(() => {
-    const fetchLists = async () => {
-      if (!selectedSpace) return;
-      setLoading(true);
-      try {
-        const folders = await getFolders(selectedSpace, accessToken);
-        const listsFromFolders = await Promise.all(
-          folders.map((folder: any) => getLists(folder.id, false, accessToken))
-        );
-        const flatLists = listsFromFolders.flat();
-        const noFolderLists = await getLists(selectedSpace, true, accessToken);
-        setLists([...flatLists, ...noFolderLists]);
-      } catch (err) {
-        console.error("Erro ao buscar listas:", err);
-      }
-      setLoading(false);
-    };
-    fetchLists();
-  }, [selectedSpace, accessToken]);
+      console.log("📥 Chamando getSpaces com:", teamId, accessToken);
 
-  useEffect(() => {
-    const fetchTasks = async () => {
-      if (!selectedList) return;
-      setLoading(true);
       try {
-        const taskRes = await getTasks(selectedList, accessToken);
-        setTasks(taskRes);
+        const spaces = await getSpacesByTeam(teamId, accessToken);
+        console.log("📦 Spaces extraídos:", spaces);
+        setSpaces(spaces);
       } catch (err) {
-        console.error("Erro ao buscar tarefas:", err);
+        console.error("❌ Erro ao buscar espaços via getSpacesByTeam:", err);
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
     };
-    fetchTasks();
-  }, [selectedList, accessToken]);
+
+    fetchSpaces();
+  }, [teamId, accessToken]);
+
+  if (loading) {
+    return <div className="text-center text-zinc-500 py-4">Carregando espaços...</div>;
+  }
 
   return (
-    <div className="space-y-4">
-      {/* Espaços */}
-      <div>
-        <p className="text-sm font-semibold text-zinc-700 mb-1">Selecione um espaço</p>
-        <div className="space-y-2">
-          {spaces.map((space) => (
-            <Button
-              key={space.id}
-              variant={selectedSpace === space.id ? "default" : "outline"}
-              className="w-full justify-start"
-              onClick={() => {
-                setSelectedSpace(space.id);
-                setSelectedList(null);
-                setTasks([]);
-              }}
-            >
-              {space.name}
-            </Button>
+    <div className="space-y-2">
+      <h3 className="text-sm font-semibold text-zinc-700 mb-2">Selecionar Espaço</h3>
+      {spaces.length === 0 ? (
+        <p className="text-sm text-zinc-500">Nenhum espaço encontrado.</p>
+      ) : (
+        <ul className="space-y-1">
+          {spaces.map((space: any) => (
+            <li key={space.id}>
+              <button
+                className="w-full text-left px-3 py-2 rounded hover:bg-zinc-100 border border-zinc-200 text-sm"
+                onClick={() => {
+                  console.log("Espaço selecionado:", space);
+                  onTaskSelect(space.id); // ou talvez carregar folders/lists aqui
+                }}
+              >
+                {space.name}
+              </button>
+            </li>
           ))}
-        </div>
-      </div>
-
-      {/* Listas */}
-      {selectedSpace && (
-        <div>
-          <p className="text-sm font-semibold text-zinc-700 mb-1">Selecione uma lista</p>
-          {loading ? (
-            <Skeleton className="h-10 w-full" />
-          ) : (
-            <div className="space-y-2">
-              {lists.map((list) => (
-                <Button
-                  key={list.id}
-                  variant={selectedList === list.id ? "default" : "outline"}
-                  className="w-full justify-start"
-                  onClick={() => setSelectedList(list.id)}
-                >
-                  {list.name}
-                </Button>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Tarefas */}
-      {selectedList && (
-        <div>
-          <p className="text-sm font-semibold text-zinc-700 mb-1">Selecione uma tarefa</p>
-          {loading ? (
-            <Skeleton className="h-10 w-full" />
-          ) : tasks.length > 0 ? (
-            <ul className="space-y-2">
-              {tasks.map((task) => (
-                <li
-                  key={task.id}
-                  className="p-2 border rounded-md cursor-pointer hover:bg-zinc-100"
-                  onClick={() => onTaskSelect(task.id)}
-                >
-                  <div className="font-medium text-sm">{task.name}</div>
-                  <div className="text-xs text-zinc-500">{task.status?.status}</div>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="text-sm text-zinc-500">Nenhuma tarefa encontrada.</p>
-          )}
-        </div>
+        </ul>
       )}
     </div>
   );

@@ -1,10 +1,19 @@
 export async function getTaskDetails(taskId: string, accessToken: string) {
-  const response = await fetch(`https://api.clickup.com/api/v2/task/${taskId}`, {
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-    },
-  });
-  return response.json();
+  const response = await fetch(
+    `${import.meta.env.VITE_OAUTH_BACKEND_URL}/api/tasks/details/${taskId}`,
+    {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+    }
+  );
+
+  if (!response.ok) {
+    throw new Error("Erro ao buscar detalhes da tarefa");
+  }
+
+  const task = await response.json();
+  return task;
 }
 
 export async function updateTask(taskId: string, accessToken: string, updates: any) {
@@ -64,31 +73,116 @@ export async function getSpacesByTeam(teamId: string, accessToken: string) {
 }
 
 export async function getFolders(spaceId: string, accessToken: string) {
-  const response = await fetch(`https://api.clickup.com/api/v2/space/${spaceId}/folder`, {
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-    },
-  });
+  try {
+    const response = await fetch(`${import.meta.env.VITE_OAUTH_BACKEND_URL}/api/folders?space_id=${spaceId}`, {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+    });
 
-  if (!response.ok) {
-    throw new Error("Erro ao buscar pastas");
+    const data = await response.json();
+    console.log("📁 [clickupAPI] Folders recebidos:", data.folders);
+    return data.folders || [];
+  } catch (error) {
+    console.error("❌ [clickupAPI] Erro ao buscar folders:", error);
+    return [];
   }
-
-  const data = await response.json();
-  return data.folders;
 }
 
+
 export async function getLists(folderId: string, accessToken: string) {
-  const response = await fetch(`https://api.clickup.com/api/v2/folder/${folderId}/list`, {
+  try {
+    const response = await fetch(`${import.meta.env.VITE_OAUTH_BACKEND_URL}/api/lists?folder_id=${folderId}`, {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+    });
+
+    const data = await response.json();
+    console.log("📄 [clickupAPI] Lists recebidas:", data.lists);
+    return data.lists || [];
+  } catch (error) {
+    console.error("❌ [clickupAPI] Erro ao buscar lists:", error);
+    return [];
+  }
+}
+
+export async function getTasksByList(listId: string, accessToken: string) {
+  const response = await fetch(`${import.meta.env.VITE_OAUTH_BACKEND_URL}/api/tasks/${listId}`, {
     headers: {
       Authorization: `Bearer ${accessToken}`,
     },
   });
 
   if (!response.ok) {
-    throw new Error("Erro ao buscar listas");
+    throw new Error("Erro ao buscar tarefas");
+  }
+  const data = await response.json();
+  return data.tasks;
+
+}
+
+export async function getTaskTypes(teamId: string, accessToken: string) {
+  const response = await fetch(`https://api.clickup.com/api/v2/team/${teamId}/task_type`, {
+    method: "GET",
+    headers: {
+      Authorization: accessToken,
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error("Erro ao buscar os tipos de tarefa");
   }
 
   const data = await response.json();
-  return data.lists;
+  return data.task_types; // array com task_type.id, name e icon
+}
+
+
+export async function getTaskById(taskId: string, accessToken: string) {
+  const response = await fetch(`https://api.clickup.com/api/v2/task/${taskId}?include_subtasks=true&include_markdown_description=true`, {
+    headers: {
+      Authorization: accessToken,
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error("Erro ao buscar detalhes da tarefa");
+  }
+
+  return await response.json();
+}
+
+
+export async function getListStatusesFromListObject(listId: string, accessToken: string) {
+  try {
+    const response = await fetch(`${import.meta.env.VITE_OAUTH_BACKEND_URL}/api/lists/${listId}`, {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+    });
+
+    if (!response.ok) throw new Error("Erro ao buscar dados da lista");
+
+    const data = await response.json();
+    return data || []; // Os status já vêm como array direto no .json()
+  } catch (error) {
+    console.error("Erro ao buscar status da lista:", error);
+    return [];
+  }
+}
+
+export async function getListsByFolder(folderId: string, accessToken: string) {
+  const response = await fetch(`https://api.clickup.com/api/v2/folder/${folderId}/list`, {
+    headers: {
+      Authorization: accessToken,
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error("Erro ao buscar listas da pasta");
+  }
+
+  const data = await response.json();
+  return data.lists; // Retorna array de listas
 }
