@@ -1,11 +1,8 @@
 import { useEffect, useState } from "react";
-import {
-  getFolders,
-  getLists,
-  getSpacesByTeam,
-} from "@/services/clickupAPI";
+import { getFolders, getLists, getSpacesByTeam, getTasks } from "@/services/clickupAPI";
 import { Folder, FolderOpen, FileText } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
+import { getListsByFolder } from "@/services/clickupAPI";
 
 interface WorkspaceExplorerProps {
   accessToken: string;
@@ -26,6 +23,11 @@ const WorkspaceExplorer: React.FC<WorkspaceExplorerProps> = ({
   const [expandedFolderId, setExpandedFolderId] = useState<string | null>(null);
   const [loadingFolders, setLoadingFolders] = useState<Record<string, boolean>>({});
   const [loadingLists, setLoadingLists] = useState<Record<string, boolean>>({});
+  const [selectedListTasks, setSelectedListTasks] = useState<any[]>([]);
+  const [selectedListName, setSelectedListName] = useState<string>("");
+  const [loadingTasks, setLoadingTasks] = useState<boolean>(false);
+  
+  
 
   
   useEffect(() => {
@@ -57,92 +59,103 @@ const WorkspaceExplorer: React.FC<WorkspaceExplorerProps> = ({
   const handleToggleFolder = async (folderId: string) => {
     const isExpanded = expandedFolderId === folderId;
     setExpandedFolderId(isExpanded ? null : folderId);
-
+  
     if (!isExpanded && !listsByFolder[folderId]) {
       setLoadingLists((prev) => ({ ...prev, [folderId]: true }));
+  
       try {
-        const lists = await getLists(folderId, accessToken);
-        setListsByFolder((prev) => ({ ...prev, [folderId]: lists }));
+        const lists = await getListsByFolder(folderId, accessToken);
+  
+        setListsByFolder((prev) => ({
+          ...prev,
+          [folderId]: lists,
+        }));
       } catch (error) {
-        console.error("Erro ao buscar listas:", error);
+        console.error("Erro ao buscar listas da pasta:", error);
+        setListsByFolder((prev) => ({ ...prev, [folderId]: [] }));
       } finally {
         setLoadingLists((prev) => ({ ...prev, [folderId]: false }));
       }
     }
+  };  
+
+  const handleListClick = async (listId: string, listName: string) => {
+    if (!listId || !accessToken) return;
+  
+    setLoadingTasks(true);
+    setSelectedListName(listName);
+  
+    try {
+      const tasks = await getTasks(listId, accessToken);
+      setSelectedListTasks(tasks);
+    } catch (error) {
+      console.error("Erro ao buscar tarefas da lista:", error);
+      setSelectedListTasks([]);
+    } finally {
+      setLoadingTasks(false);
+    }
   };
+  
+  
 
   return (
     <div className="space-y-3">
       <h3 className="text-sm font-semibold text-zinc-700 mb-1">Selecionar Lista</h3>
 
       {spaces.map((space) => (
-        <div key={space.id}>
-          <button
-            onClick={() => handleToggleSpace(space.id)}
-            className="flex items-center gap-2 text-sm hover:underline"
+  <div key={space.id} className="mb-2">
+    <div
+      onClick={() => handleToggleSpace(space.id)}
+      className="cursor-pointer flex items-center gap-2 px-2 py-1 hover:bg-gray-100 rounded-md"
+    >
+      <div className="w-4 h-4 rounded-sm" style={{ backgroundColor: space.color }} />
+      <span>{space.name}</span>
+    </div>
+
+    {expandedSpaceId === space.id &&
+      foldersBySpace[space.id]?.map((folder) => (
+        <div key={folder.id} className="ml-4">
+          <div
+            onClick={() => handleToggleFolder(folder.id)}
+            className="cursor-pointer flex items-center gap-2 px-2 py-1 hover:bg-gray-100 rounded-md"
           >
-            <div
-              className="w-3 h-3 rounded-sm"
-              style={{ backgroundColor: space.color || "#ccc" }}
-            />
-            {space.name}
-          </button>
+            {expandedFolderId === folder.id ? (
+              <FolderOpen className="w-4 h-4 text-gray-600" />
+            ) : (
+              <Folder className="w-4 h-4 text-gray-600" />
+            )}
+            <span>{folder.name}</span>
+          </div>
 
-          {expandedSpaceId === space.id && (
-            <div className="ml-6 mt-1">
-              {loadingFolders[space.id] ? (
-                <Skeleton className="h-5 w-32 mb-2" />
+          {expandedFolderId === folder.id && (
+            <div className="ml-4 mt-2 space-y-2">
+              {loadingLists[folder.id] ? (
+                <div className="text-sm text-gray-500">Carregando listas...</div>
               ) : (
-                foldersBySpace[space.id]?.map((folder) =>
-                  folder?.id && folder?.name ? (
-                    <div key={folder.id} className="mb-1">
-                      <button
-                        onClick={() => handleToggleFolder(folder.id)}
-                        className="flex items-center gap-2 text-sm hover:underline"
-                      >
-                      <span className="flex items-center justify-center w-4 h-4">
-                        {expandedFolderId === folder.id ? (
-                          <FolderOpen size={16} className="text-muted-foreground" />
-                        ) : (
-                          <Folder size={16} className="text-muted-foreground" />
-                        )}
-                        </span> 
-                        {folder.name}
-                      </button>
-
-                      {expandedFolderId === folder.id && (
-                        <div className="ml-6 mt-1">
-                          {loadingLists[folder.id] ? (
-                            <Skeleton className="h-4 w-32 mb-1" />
-                          ) : (
-                            listsByFolder[folder.id]?.map((list) =>
-                              list?.id && list?.name ? (
-                                <button
-                                  key={list.id}
-                                  onClick={() => {
-                                    onListSelect(list.id, list);
-                                  }}
-    
-                                  className="text-sm ml-4 hover:underline flex items-center gap-2"
-                                >
-                                  <FileText size={14} className="text-muted-foreground" />
-                                  {list.name}
-                                </button>
-                              ) : null
-                            )
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  ) : null
-                )
+                listsByFolder[folder.id]?.map((list) => (
+                  <div
+                    key={list.id}
+                    onClick={() => {
+                      setSelectedListName(list.id);
+                    }}                    
+                    className="cursor-pointer p-2 rounded-md hover:bg-gray-100 text-sm transition flex items-center space-x-2"
+                  >
+                    <FileText className="w-4 h-4 text-gray-500" />
+                    <span>{list.name}</span>
+                  </div>
+                ))
               )}
             </div>
           )}
         </div>
       ))}
+  </div>
+))}
     </div>
   );
 };
+
+
+
 
 export default WorkspaceExplorer;

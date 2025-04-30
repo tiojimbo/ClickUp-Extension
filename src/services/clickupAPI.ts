@@ -173,16 +173,45 @@ export async function getListStatusesFromListObject(listId: string, accessToken:
 }
 
 export async function getListsByFolder(folderId: string, accessToken: string) {
-  const response = await fetch(`https://api.clickup.com/api/v2/folder/${folderId}/list`, {
-    headers: {
-      Authorization: accessToken,
-    },
-  });
+  try {
+    const response = await fetch(`${import.meta.env.VITE_OAUTH_BACKEND_URL}/api/folders/${folderId}/lists`, {
+      headers: {
+        Authorization: accessToken,
+      },
+    });
 
-  if (!response.ok) {
-    throw new Error("Erro ao buscar listas da pasta");
+    if (!response.ok) {
+      throw new Error("Erro ao buscar listas da pasta");
+    }
+
+    const data = await response.json();
+    return data.lists || [];
+  } catch (error) {
+    console.error("❌ Erro ao buscar listas da pasta via backend:", error);
+    return [];
   }
-
-  const data = await response.json();
-  return data.lists; // Retorna array de listas
 }
+
+
+
+export const getTasks = async (listId: string, accessToken: string) => {
+  try {
+    const response = await fetch(`${import.meta.env.VITE_OAUTH_BACKEND_URL}/api/lists/${listId}/tasks`, {
+      headers: {
+        Authorization: accessToken,
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error('Erro ao buscar tarefas da lista');
+    }
+
+    const data = await response.json();
+    return data.tasks || [];
+  } catch (error) {
+    console.error('Erro na função getTasks:', error);
+    return [];
+  }
+};
+
+

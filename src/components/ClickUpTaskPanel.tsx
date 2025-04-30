@@ -12,10 +12,6 @@ import { formatCustomFieldValue } from "@/types/customFields";
 import { Calendar as CalendarIcon } from "lucide-react";
 import { FolderIcon, ListIcon } from "lucide-react";
 
-
-
-
-
 import {
   DialogHeader,
   DialogFooter
